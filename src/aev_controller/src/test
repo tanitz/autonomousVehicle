@@ -1,0 +1,173 @@
+#!/usr/bin/env python
+
+import math
+from math import sin, cos, pi ,tan
+import time
+from time import sleep
+import rospy
+import tf
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3
+from pyModbusTCP.client import ModbusClient
+import numpy as np
+from std_msgs.msg import Float64
+from autoware_msgs import ControlCommandStamped
+##################################################################
+def current_milli_time():
+    return round(time.time() * 1000)
+##################################################################    
+radius = 0.08                   
+wheelbase = 0.60
+speed_act_left = 0.0
+speed_act_right = 0.0
+speed_req = 0.0
+angular_speed_req = 0.0
+##################################################################
+def callback(msg):
+    global speed_req_left,speed_req_right,speed_req,angular_speed_req
+    noCommLoops = 0.0                                                 
+    speed_req = msg.linear.x                                    
+    angular_speed_req = msg.angular.z           
+    # rospy.loginfo(str(msg.angular.z)+" "+str(msg.linear.x))             
+    
+    
+##################################################################
+# rospy.init_node('speed_publisher')
+# speed_pub = rospy.Publisher("speed", Vector3, queue_size=50)
+# odom_broadcaster = tf.TransformBroadcaster()
+##################################################################\
+def publishSpeed(time):
+    speed_msg = Vector3()
+    # speed_msg.header.stamp = rospy.Time.now()    
+    speed_msg.x = speed_act_left   
+    speed_msg.y = speed_act_right  
+    speed_msg.z = time    
+        
+    speed_pub.publish(speed_msg)
+##################################################################
+# current_time = rospy.Time.now()
+# last_time = current_time
+
+##################################################################
+#   100     analog_L
+#   102     analog_R
+#   200     encoder
+#   202     encoder
+
+ratio = 0.0
+
+def speedValue(speed):
+    if speed >= 0.0 :
+        speed = speed     
+    else :
+        speed = 65536.0+(speed)
+    return speed
+
+def encoderValue(encoder):
+    if encoder >= 0.0 and encoder <= 50000.0 :
+        encoder1 = encoder     
+    else :
+        encoder1 = encoder-65536.0
+    return encoder1
+
+# r = rospy.Rate(5)
+# speedleft =0
+# speedright = 0
+steering_r = []
+steering_l = []
+steering = []
+steering_ctrl = 0.0
+
+
+def callback(data):
+    steering_ctrl = data.steering_angle
+    print(steering_ctrl)
+    rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.cmd.steering_angle)
+
+
+def translate(value, leftMin, leftMax, rightMin, rightMax):
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return rightMin + (valueScaled * rightSpan)
+
+print(translate(0.01,-0.5,0.5,250,5))
+c = ModbusClient(host="10.1.67.99",port=502, auto_open=True)
+c.open()
+rospy.loginfo(c.open())
+rospy.loginfo('Controller Motor setup Full.')
+
+while not rospy.is_shutdown():
+    # c.write_single_register(128,1)
+    rospy.init_node('aev_controller')
+    rospy.Subscriber("/ctrl_raw", Float64, callback)
+   
+    input_plc = translate(steering_ctrl,-0.5,0.5,250,5)
+    c.write_single_register(100,int(input_plc))
+
+
+#     encoder_L = c.read_holding_registers(110)  
+#     encoder_R = c.read_holding_registers(114)
+#     encoder_L[0] = encoderValue(encoder_L[0])
+#     encoder_R[0] = encoderValue(encoder_R[0])
+#     # rospy.loginfo(str(encoder_L)+" "+str(encoder_R))  
+
+    
+#     c.write_single_register(104,0)  
+#     current_time = rospy.Time.now()
+#     ##################################################################
+#     encoder_L = c.read_holding_registers(200)
+#     encoder_R = c.read_holding_registers(202)
+#     # print (encoder_L)
+    
+#     encoder_L[0] = encoderValue(encoder_L[0])
+#     encoder_R[0] = encoderValue(encoder_R[0])
+    
+#     # encoder_L = encoder_L1[0]
+#     # encoder_R = encoder_R2[0]
+#     ##################################################################
+    
+#     if((current_time - last_time).to_sec()>=1.0):           
+#         last_time = current_time
+#         if (abs(encoder_L[0]) < 3.0):
+#             speed_act_left = 0.0        
+#         else :
+#             speed_act_left=((encoder_L[0]/1800.0)*2*3.14)*(LOOPTIME)*radius*2.0              
+#         if (abs(encoder_R[0]) < 3.0):                                               
+#             speed_act_right = 0.0        
+#         else :
+#             speed_act_right=((encoder_R[0]/1795.0)*2*3.14)*(LOOPTIME)*radius*2.0
+#         # rospy.loginfo('Speed Motor_L :{} && Motor_R :{}'.format(str(speed_act_left),str(speed_act_right)))
+#         c.write_single_register(104,1)  
+#     # c.write_single_register(104,0)    
+#     rospy.loginfo(str(speed_act_left)+" "+str(speed_act_right))    
+#     publishSpeed(1)
+
+#     rospy.Subscriber("/cmd_vel", Twist, callback) 
+
+#     speed_req_left = speed_req - angular_speed_req*(wheelbase/2.0)
+#     speed_req_left = speed_req_left*1000
+#     if speed_req_left < 0.0 :
+#          speed_req_left = 65536 + speed_req_left  
+
+#     speed_req_right = speed_req + angular_speed_req*(wheelbase/2.0)
+#     speed_req_right = speed_req_right*1000
+#     if speed_req_right < 0.0 :
+#          speed_req_right = 65536 + speed_req_right 
+
+#     speedleft = int(speed_req_left)
+#     speedright = int(speed_req_right)
+#     # rospy.loginfo(str(speed_req_left)+" "+str(speed_req_right))
+#     c.write_multiple_registers(100,[speedleft,0,speedright,0,7,0,0,0,1])
+#     # sleep(0.2)
+#     # c.write_single_register(104,0)
+
+    
+    
+
+    
+    # r.sleep()

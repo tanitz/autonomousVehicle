@@ -1,0 +1,11 @@
+import time
+i = 1
+p = 1
+promlaw = 0
+while i < 6:
+    print(i)
+    print(promlaw)
+    time.sleep (0.5)
+    i =i + 1
+promlaw = 1
+print(promlaw)

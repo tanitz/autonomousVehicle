@@ -1,0 +1,48 @@
+while not rospy.is_shutdown():
+    # value = randint(-30, 30)
+    rospy.Subscriber("/ctrl_cmd",ControlCommandStamped,callback) #steering_ctrl 
+    rospy.Subscriber("/ndt_reliability",Float32,reliability) #score_reliability
+    rospy.Subscriber("/status_go",Int16,moveAEV) #mode_aev
+    rospy.Subscriber("/station_select",Int16,station) #``
+    rospy.Subscriber("/status_brake",Int16,s_brake)#brake_req
+    rospy.Subscriber("/angle",Twist,pid)#steering_setpoint ,steering_input
+    rospy.Subscriber("/position_cmd",Twist,detection) # score_detection
+    rospy.Subscriber("/reliabilityValue",Float32,subReliabilityValue) # reliabilityValueCtrl
+    rospy.Subscriber("/detectionValue",Float32,subDetectionValue) # detectionValueCtrl
+    rospy.Subscriber("/speedValue",Int16,subSpeedValue) # speedValueCtrl
+
+
+    diff_steering = abs(steering_setpoint - steering_input)
+    time.sleep(0.1)
+    # try:
+    #     (trans,rot) = listener.lookupTransform('/map', '/base_link', rospy.Time(0))
+    # except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+    #     continue\
+    if (score_detection==0):
+        score_detection = 20
+        statsBrake = 0
+    if (mode_aev ==1 and 
+        score_reliability <= reliabilityValueCtrl and 
+        score_detection >= detectionValueCtrl):
+
+        steering_ctrlTranfer = translate(steering_ctrl,-0.8,0.8,110,-110)
+        steering_pub.publish(int(steering_ctrlTranfer))
+        speed_pub.publish(speedValueCtrl)
+        loop1 = 0
+        brake_pub.publish(0)
+    else : 
+        loop1 = 1
+        steering_ctrlTranfer = translate(steering_ctrl,-0.8,0.8,110,-110)
+        steering_pub.publish(int(steering_ctrlTranfer))
+        speed_pub.publish(0)
+
+    
+    if (mode_aev ==1 and score_detection <= detectionValueCtrl):
+        steering_pub.publish(0)
+        speed_pub.publish(0)
+        brake_pub.publish(-24000)
+        statsBrake = 1
+    else:
+        steering_pub.publish(0)
+        speed_pub.publish(0)
+        brake_pub.publish(0)

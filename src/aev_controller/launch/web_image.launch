@@ -1,0 +1,24 @@
+<launch> 
+   
+    <group ns="camera1">
+    <node pkg="tf" type="static_transform_publisher" name="camera_broadcaster"
+        args="-5 0 12 1.57 3.14 1 base_link camera1 10" />
+    <node name="camera_info" pkg="rostopic" type="rostopic"
+        args="pub camera_info sensor_msgs/CameraInfo
+        '{header: {seq: 0, stamp: {secs: 0, nsecs: 0}, frame_id: 'camera1'},
+        height: 1080, width: 1920, distortion_model: 'plumb_bob',
+        D: [500],
+        K: [500.0, 0.0, 960, 0.0, 500.0, 540.0, 0.0, 0.0, 1.0],
+        R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        P: [500.0, 0.0, 960, 0.0, 0.0, 500, 540, 0.0, 0.0, 0.0, 1.0, 0.0],
+        binning_x: 0, binning_y: 0,
+        roi: {x_offset: 0, y_offset: 0, height: 1080, width: 1920, do_rectify: true}}' -r 2"
+        output="screen"/>
+    </group>
+
+    <node name="image_view" pkg="image_view" type="image_view" output="screen" />
+
+    <node name="web_video_server" pkg="web_video_server" type="web_video_server" output="screen" />
+
+</launch>
+
